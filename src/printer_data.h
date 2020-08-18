@@ -44,7 +44,7 @@ struct ly_out;
                                                       Note that this is the default value when no WD option is specified. */
 #define LYD_PRINT_WD_TRIM       0x10             /**< Do not print the nodes with the value equal to their default value */
 #define LYD_PRINT_WD_ALL        0x20             /**< Include implicit default nodes */
-#define LYD_PRINT_WD_ALL_TAG    0x40             /**< Same as #LYDP_WD_ALL but also adds attribute 'default' with value 'true' to
+#define LYD_PRINT_WD_ALL_TAG    0x40             /**< Same as #LYD_PRINT_WD_ALL but also adds attribute 'default' with value 'true' to
                                                       all nodes that has its default value. The 'default' attribute has namespace:
                                                       urn:ietf:params:xml:ns:netconf:default:1.0 and thus the attributes are
                                                       printed only when the ietf-netconf-with-defaults module is present in libyang

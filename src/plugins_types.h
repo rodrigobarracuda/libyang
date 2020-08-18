@@ -126,7 +126,7 @@ const struct lys_module *ly_resolve_prefix(const struct ly_ctx *ctx, const char 
  * @param[in] format Format of the prefix.
  * @param[in] prefix_data Format-specific data:
  *      LY_PREF_SCHEMA  - const struct lys_module * (local module)
- *      LY_PREF_XML     - struct ly_set * (set of all returned modules as ::struct lys_module)
+ *      LY_PREF_XML     - struct ly_set * (set of all returned modules as ::lys_module)
  *      LY_PREF_JSON    - NULL
  * @return Module prefix to print.
  * @return NULL on error.

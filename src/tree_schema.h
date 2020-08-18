@@ -34,6 +34,112 @@ struct ly_ctx;
 struct ly_set;
 
 /**
+ * @page howtoSchema YANG Modules
+ *
+ * To be able to work with YANG data instances, libyang has to represent YANG data models. All the processed modules are stored
+ * in libyang [context](@ref howtoContext) and loaded using [parser functions](@ref howtoSchemaParsers). It means, that there is
+ * no way to create/change YANG module programmatically. However, all the YANG model definitions are available and can be examined
+ * through the C structures. All the context's modules together form YANG Schema for the data being instantiated.
+ *
+ * Any YANG module is represented as ::lys_module. In fact, the module is represented in two different formats. As ::lys_module::parsed,
+ * there is a parsed schema reflecting the source YANG module. It is exactly what is read from the input. This format is good for
+ * converting from one format to another (YANG to YIN and vice versa), but it is not very useful for validating/manipulating YANG
+ * data. Therefore, there is ::lys_module::compiled storing the compiled YANG module. It is based on the parsed module, but all the
+ * references are resolved. It means that, for example, there are no `grouping`s or `typedef`s since they are supposed to be placed instead of
+ * `uses` or `type` references. This split also means, that the YANG module is fully validated after compilation of the parsed
+ * representation of the module. YANG submodules are available only in the parsed representation. When a submodule is compiled, it
+ * is fully integrated into its main module.
+ *
+ * The context can contain even modules without the compiled representation. Such modules are still useful as imports of other
+ * modules. The grouping or typedef definition can be even compiled into the importing modules. This is actually the main
+ * difference between the imported and implemented modules in the libyang context. The implemented modules are compiled while the
+ * imported modules are only parsed.
+ *
+ * In case the context's ::LY_CTX_ALLIMPLEMENTED option is not set, the module is not implemented in case it is implicitly
+ * loaded as import for another module and it is not referenced in such a module (and no other) as target of leafref, augment
+ * or deviation.
+ *
+ * All modules with deviation definition are always marked as implemented. The imported (not implemented) module can be set implemented by lys_set_implemented(). But
+ * the implemented module cannot be changed back to just imported module. Note also that only one revision of a specific module
+ * can be implemented in a single context. The imported modules are used only as a
+ * source of definitions for types and groupings for uses statements. The data in such modules are ignored - caller
+ * is not allowed to create the data (including instantiating identities) defined in the model via data parsers,
+ * the default nodes are not added into any data tree and mandatory nodes are not checked in the data trees.
+ *
+ * The compiled schema tree nodes are able to hold private objects (::lysc_node::priv as a pointer to a structure, function, variable, ...) used by
+ * a caller application. Such an object can be assigned to a specific node using ::lysc_node_set_private() function.
+ * Note that the object is not freed by libyang when the context is being destroyed. So the caller is responsible
+ * for freeing the provided structure after the context is destroyed or the private pointer is set to NULL in
+ * appropriate schema nodes where the object was previously set. This can be automated via destructor function
+ * to free these private objects. The destructor is passed to the ::ly_ctx_destroy() function.
+ *
+ * - @subpage howtoSchemaParsers
+ * - @subpage howtoSchemaFeatures
+ * - @subpage howtoSchemaPlugins
+ * - @subpage howtoSchemaPrinters
+ *
+ * \note There are many functions to access information from the schema trees. Details are available in
+ * the [Schema Tree module](@ref schematree).
+ *
+ * For information about difference between implemented and imported modules, see the
+ * [context description](@ref howtoContext).
+ *
+ * Functions List (not assigned to above subsections)
+ * --------------------------------------------------
+ * - ::lys_getnext()
+ * - ::lys_parent()
+ * - ::lys_module()
+ * - ::lys_node_module()
+ * - ::lys_set_private()
+ * - ::lys_set_implemented()
+ * - ::lys_set_disabled()
+ * - ::lys_set_enabled()
+ *
+ * - ::lysc_node_set_private()
+ *
+ * - ::lysc_
+ */
+
+/**
+ * @page howtoSchemaFeatures YANG Features
+ *
+ * YANG feature statement is an iportant part of the language which can significantly affect the meaning of the schemas. Despite
+ * the features have similar effect as loading/removing schema from the context, manipulating with the feature value is not
+ * limited to the context preparation period before working with data. YANG features, respectively their use in if-feature
+ * statements, are evaluated as part of the [data validation process](@ref howtoDataValidation).
+ *
+ * The main functions with *lys_feature_* prefix are used to change the value (true/false) of the feature and to get its current
+ * value. Enabling/disabling all the features in a particular module can be done using '`*`' value instead of the feature name.
+ *
+ * There are two options to reflect feature's if-feature statements when enabling/disabling the feature. The ::lys_feature_enable()
+ * and ::lys_feature_disable() functions check their if-feature expressions (it is not possible to enable feature if it is not
+ * allowed by its if-feature expressions) and also checks for and update other features those if-feature expressions use the
+ * changed feature. On the contrary, ::lys_feature_enable_force() and ::lys_feature_disable_force() ignore all the if-feature
+ * limitations.
+ *
+ * The ::lysc_feature_value() and ::lys_feature_value() functions differ only by their parameters. The ::lysc_iffeature_value()
+ * is used to evaluate (possibly complex in YANG 1.1) logical expression from if-feature statement.
+ *
+ * The list of features of a particular YANG module is available in ::lys_module::features.
+ *
+ * To get know, if a specific schema node is currently disabled or enable, the ::lys_node_is_disabled() function can be used.
+ *
+ * Note, that the feature's state can affect some of the output formats (e.g. Tree format).
+ *
+ * Functions List
+ * --------------
+ * - ::lys_feature_enable()
+ * - ::lys_feature_enable_force()
+ * - ::lys_feature_disable()
+ * - ::lys_feature_disable_force()
+ * - ::lys_feature_value()
+ * - ::lysc_feature_value()
+ * - ::lysc_iffeature_value()
+ *
+ * - ::lysc_node_is_disabled()
+ */
+
+/**
  * @defgroup schematree Schema Tree
  * @ingroup trees
  * @{
@@ -757,7 +863,10 @@ struct lysp_deviation {
 #define LYS_UNIQUE       0x80        /**< flag for leafs being part of a unique set, applicable only to ::lysc_node_leaf */
 #define LYS_KEY          0x100       /**< flag for leafs being a key of a list, applicable only to ::lysc_node_leaf */
 #define LYS_KEYLESS      0x200       /**< flag for list without any key, applicable only to ::lysc_node_list */
-#define LYS_FENABLED     0x100       /**< feature enabled flag, applicable only to ::lysc_feature */
+#define LYS_FENABLED     0x100       /**< feature enabled flag, applicable only to ::lysc_feature.
+                                          Do not interpret presence of this flag as enabled feature! Also if-feature statements
+                                          are supposed to be taken into account, so use ::lys_feature_value() or
+                                          ::lysc_feature_value() to get know if a specific feature is really enabled. */
 #define LYS_ORDBY_SYSTEM 0x80        /**< ordered-by user lists, applicable only to ::lysc_node_leaflist/::lysp_node_leaflist and
                                           ::lysc_node_list/::lysp_node_list */
 #define LYS_ORDBY_USER   0x40        /**< ordered-by user lists, applicable only to ::lysc_node_leaflist/::lysp_node_leaflist and
@@ -1720,7 +1829,7 @@ const struct lysc_node *lysc_node_children(const struct lysc_node *node, uint16_
 /**
  * @brief Examine whether a node is user-ordered list or leaf-list.
  *
- * @param[in] node Node to examine.
+ * @param[in] schema Schema node to examine.
  * @return non-zero if it is,
  * @return Boolean value whether the @p node is user-ordered or not.
  */
@@ -1839,6 +1948,7 @@ struct lys_module {
                                           future (no matter if implicitly via augment/deviate or explicitly via
                                           ::lys_set_implemented()). Note that if the module is not implemented (compiled), the
                                           identities cannot be instantiated in data (in identityrefs). */
+
     uint8_t implemented;             /**< flag if the module is implemented, not just imported. The module is implemented if
                                           the flag has non-zero value. Specific values are used internally:
                                           1 - implemented module
@@ -1982,12 +2092,12 @@ const struct lysc_node *lys_find_child(const struct lysc_node *parent, const str
  *
  * In case the @p qpath uses prefixes (from imports or of the schema itself), the @p context_node must be specified
  * even if the path is absolute. In case the @p context_node is not provided, the names of the schemas are expected as the
- * node's prefixes in the @qpath. It also means that the relative paths are accepted only with the schema prefixes,
+ * node's prefixes in the @p qpath. It also means that the relative paths are accepted only with the schema prefixes,
  * not the full names.
  *
  * @param[in] ctx libyang context for logging and getting the correct schema if @p contet_node not provided.
  * @param[in] context_node Context node for relative paths and/or as a source of the context module to resolve node's
- * prefixes in @qpath.
+ * prefixes in @p qpath.
  * @param[in] qpath Schema path to be resolved. Not prefixed nodes inherits the prefix from its parent nodes. It means
  * that the first node in the path must be prefixed. Both, import prefixes as well as full schema names are accepted as
  * prefixes according to the @p context_node parameter presence.

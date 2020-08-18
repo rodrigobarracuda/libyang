@@ -63,7 +63,7 @@ struct ly_set
 /**
  * @brief Create and initiate new ::ly_set structure.
  *
- * @param[out] set Pointer to store the created ::ly_set structure.
+ * @param[out] set_p Pointer to store the created ::ly_set structure.
  * @return LY_SUCCESS on success.
  * @return LY_EINVAL in case of NULL @p set parameter.
  * @return LY_EMEM in case of memory allocation failure.
@@ -77,7 +77,10 @@ LY_ERR ly_set_new(struct ly_set **set_p);
  * @param[in] duplicator Optional pointer to function that duplicates the objects stored
  * in the original set. If not provided, the new set points to the exact same objects as
  * the original set.
- * @return Duplication of the original set.
+ * @param[out] newset_p Pointer to return the duplication of the original set.
+ * @return LY_SUCCESS in case the data were successfully duplicated.
+ * @return LY_EMEM in case of memory allocation failure.
+ * @return LY_EINVAL in case of invalid parameters.
  */
 LY_ERR ly_set_dup(const struct ly_set *set, void *(*duplicator)(void *obj), struct ly_set **newset_p);
 

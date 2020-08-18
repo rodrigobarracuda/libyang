@@ -44,22 +44,22 @@ extern "C" {
  *
  * @section about-features Main Features
  *
- * - [Parsing (and validating) schemas](@ref howtoschemasparsers) in YANG format.
- * - [Parsing (and validating) schemas](@ref howtoschemasparsers) in YIN format.
- * - [Parsing, validating and printing instance data](@ref howtodata) in XML format.
- * - [Parsing, validating and printing instance data](@ref howtodata) in JSON format
+ * - [Parsing (and validating) schemas](@ref howtoSchema) in YANG format.
+ * - [Parsing (and validating) schemas](@ref howtoSchema) in YIN format.
+ * - [Parsing, validating and printing instance data](@ref howtoData) in XML format.
+ * - [Parsing, validating and printing instance data](@ref howtoData) in JSON format
  *   ([RFC 7951](https://tools.ietf.org/html/rfc7951)).
- * - [Manipulation with the instance data](@ref howtodatamanipulators).
- * - Support for [default values in the instance data](@ref howtodatawd) ([RFC 6243](https://tools.ietf.org/html/rfc6243)).
- * - Support for [YANG extensions and user types](@ref howtoschemaplugins).
- * - Support for [YANG Metadata](@ref howtoschemametadata) ([RFC 7952](https://tools.ietf.org/html/rfc6243)).
+ * - [Manipulation with the instance data](@ref howtoDataManipulators).
+ * - Support for [default values in the instance data](@ref howtoDataWD) ([RFC 6243](https://tools.ietf.org/html/rfc6243)).
+ * - Support for [YANG extensions and user types](@ref howtoSchemaPlugins).
+ * - Support for [YANG Metadata](@ref howtoSchemaMetadata) ([RFC 7952](https://tools.ietf.org/html/rfc6243)).
  *
  * The current implementation covers YANG 1.0 ([RFC 6020](https://tools.ietf.org/html/rfc6020)) as well as
  * YANG 1.1 ([RFC 7950](https://tools.ietf.org/html/rfc7950)).
  *
  * @section about-license License
  *
- * Copyright (c) 2015-2017 CESNET, z.s.p.o.
+ * Copyright (c) 2015-2020 CESNET, z.s.p.o.
  *
  * (The BSD 3-Clause License)
  *
@@ -80,28 +80,28 @@ extern "C" {
 /**
  * @page howto libyang API Overview
  *
- * - @subpage howtocontext
- * - @subpage howtoschemas
- * - @subpage howtodata
- * - @subpage howtoxpath
- * - @subpage howtoxml
- * - @subpage howtothreads
- * - @subpage howtologger
- * - @subpage howtoplugins
- * - @subpage howtostructures
- */
-
-/**
- * @internal
- * @page internals Developers' Notes
- * @tableofcontents
+ * @section howtoGeneral General notes
  *
- * Following texts describes various internal subsystems and mechanism in libyang which are hidden from external users, but important
- * for libyang developers. The texts should explain various decisions made and internal processes utilized in libyang.
+ * libyang is primarily intended for handling data modeled by YANG modeling language, so the library is supposed to be optimized
+ * for this purpose. However, as a side effect, the library has to be able precisely process YANG modules. Thus, it is usable by
+ * YANG module authors to validate their modules and schemas in the development process.
+ *
+ * - @subpage howtoStructures
+ * - @subpage howtoErrors
+ * - @subpage howtoLogger
+ * - @subpage howtoThreads
+ * - @subpage howtoContext
+ * - @subpage howtoParsers
+ * - @subpage howtoPrinters
+ * - @subpage howtoSchema
+ * - @subpage howtoData
+ * - @subpage howtoXpath
+ * - @subpage howtoXml
+ * - @subpage howtoPlugins
  */
 
 /**
- * @page howtostructures Data Structures
+ * @page howtoStructures Data Structures
  *
  * @section sizedarrays Sized Arrays
  *
@@ -114,7 +114,7 @@ extern "C" {
  * The sized arrays must be carefully freed (which should be done anyway only internally), since pointers to the sized arrays used
  * in libyang structures, does not point to the beginning of the allocated space.
  *
- * - ::LY_ARRAY_SIZE
+ * - ::LY_ARRAY_COUNT
  * - ::LY_ARRAY_FOR
  *
  * @section struct_lists Lists
@@ -123,7 +123,7 @@ extern "C" {
  */
 
 /**
- * @page howtoplugins Plugins
+ * @page howtoPlugins Plugins
  *
  * libyang supports several types of plugins to better support generic features of YANG that need some specific code for
  * their specific instances in YANG schemas. This is the case of YANG types, which are derived from YANG built-in types
@@ -132,7 +132,20 @@ extern "C" {
  * are YANG extensions. For YANG extensions, most of the specification stays in their description (e.g. allowed substatements
  * or place of the extension instanciation) and libyang is not able to process such a text in a generic way. In both cases,
  * libyang provides API to provide functionality implementing the specifics of each type or extension.
+ *
+ * - @subpage howtoPluginsTypes
+ * - @subpage howtoPluginsExtensions
  */
+
+/**
+ * @internal
+ * @page internals Developers' Notes
+ * @tableofcontents
+ *
+ * Following texts describes various internal subsystems and mechanism in libyang which are hidden from external users, but important
+ * for libyang developers. The texts should explain various decisions made and internal processes utilized in libyang.
+ */
+
 #ifdef __cplusplus
 }
 #endif
