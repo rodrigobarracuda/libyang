@@ -15,46 +15,55 @@
 
 #include "../macros.h"
 
-#define MODEL_CREATE(INPUT, MODEL) MODEL_CREATE_PARAM(INPUT, LYD_XML, LYD_PARSE_ONLY, 0, MODEL) 
+#define MODEL_CREATE(INPUT, MODEL) \
+                MODEL_CREATE_PARAM(INPUT, LYD_XML, LYD_PARSE_ONLY, 0, MODEL)
 
 #define CONTEXT_CREATE \
                 CONTEXT_CREATE_PATH(TESTS_DIR_MODULES_YANG); \
                 assert_non_null(ly_ctx_load_module( CONTEXT_GET, "ietf-netconf-acm", "2018-02-14")); \
-                assert_int_equal(LY_SUCCESS, lys_parse_mem(CONTEXT_GET, schema, LYS_IN_YANG, NULL));
+                assert_int_equal(LY_SUCCESS, lys_parse_mem(CONTEXT_GET, schema, LYS_IN_YANG, NULL))
 
 #define MODEL_CHECK_CHAR(IN_MODEL, TEXT) \
-                MODEL_CHECK_CHAR_PARAM(IN_MODEL, TEXT, LYD_PRINT_WITHSIBLINGS | LYD_PRINT_SHRINK);
+                MODEL_CHECK_CHAR_PARAM(IN_MODEL, TEXT, LYD_XML, LYD_PRINT_WITHSIBLINGS | LYD_PRINT_SHRINK)
 
 #define MODEL_CREATE_DIFF(INPUT_1, INPUT_2, OUT_MODEL) \
-                struct lyd_node * OUT_MODEL;\
                 assert_int_equal(LY_SUCCESS, lyd_diff_siblings(INPUT_1, INPUT_2, 0, &OUT_MODEL));\
-                assert_non_null(OUT_MODEL);
+                assert_non_null(OUT_MODEL)
 
 #define TEST_DIFF_3(XML_1, XML_2, XML_3, DIFF_1, DIFF_2, MERGE) \
-                CONTEXT_CREATE;\
-                MODEL_CREATE(XML_1, model_1);\
-                MODEL_CREATE(XML_2, model_2);\
-                MODEL_CREATE(XML_3, model_3);\
-                /* diff1 */ \
-                MODEL_CREATE_DIFF(model_1, model_2, diff1); \
-                MODEL_CHECK_CHAR(diff1, DIFF_1); \
-                assert_int_equal(lyd_diff_apply_all(&model_1, diff1), LY_SUCCESS); \
-                MODEL_CHECK(model_1, model_2); \
-                /* diff2 */ \
-                MODEL_CREATE_DIFF(model_2, model_3, diff2); \
-                MODEL_CHECK_CHAR(diff2, DIFF_2); \
-                assert_int_equal(lyd_diff_apply_all(&model_2, diff2), LY_SUCCESS);\
-                MODEL_CHECK(model_2, model_3);\
-                /* merge */ \
-                assert_int_equal(lyd_diff_merge_all(&diff1, diff2), LY_SUCCESS);\
-                MODEL_CHECK_CHAR(diff1, MERGE); \
-                /* CREAR ENV */ \
-                MODEL_DESTROY(model_1);\
-                MODEL_DESTROY(model_2);\
-                MODEL_DESTROY(model_3);\
-                MODEL_DESTROY(diff1);\
-                MODEL_DESTROY(diff2);\
-                CONTEXT_DESTROY;\
+                { \
+                    CONTEXT_CREATE;\
+                    /*decladation*/\
+                    struct lyd_node *model_1;\
+                    struct lyd_node *model_2;\
+                    struct lyd_node *model_3;\
+                    /*create*/\
+                    MODEL_CREATE(XML_1, model_1);\
+                    MODEL_CREATE(XML_2, model_2);\
+                    MODEL_CREATE(XML_3, model_3);\
+                    /* diff1 */ \
+                    struct lyd_node * diff1;\
+                    MODEL_CREATE_DIFF(model_1, model_2, diff1); \
+                    MODEL_CHECK_CHAR(diff1, DIFF_1); \
+                    assert_int_equal(lyd_diff_apply_all(&model_1, diff1), LY_SUCCESS); \
+                    MODEL_CHECK(model_1, model_2); \
+                    /* diff2 */ \
+                    struct lyd_node * diff2;\
+                    MODEL_CREATE_DIFF(model_2, model_3, diff2); \
+                    MODEL_CHECK_CHAR(diff2, DIFF_2); \
+                    assert_int_equal(lyd_diff_apply_all(&model_2, diff2), LY_SUCCESS);\
+                    MODEL_CHECK(model_2, model_3);\
+                    /* merge */ \
+                    assert_int_equal(lyd_diff_merge_all(&diff1, diff2), LY_SUCCESS);\
+                    MODEL_CHECK_CHAR(diff1, MERGE); \
+                    /* CREAR ENV */ \
+                    MODEL_DESTROY(model_1);\
+                    MODEL_DESTROY(model_2);\
+                    MODEL_DESTROY(model_3);\
+                    MODEL_DESTROY(diff1);\
+                    MODEL_DESTROY(diff2);\
+                    CONTEXT_DESTROY;\
+                }
 
 const char *schema =
     "module defaults {"
@@ -250,14 +259,15 @@ test_invalid(void **state)
 
     CONTEXT_CREATE;
 
-    MODEL_CREATE(xml, model_1); 
+    struct lyd_node *model_1;
+    MODEL_CREATE(xml, model_1);
 
     struct lyd_node * diff = NULL;
     assert_int_equal(lyd_diff_siblings(model_1, lyd_node_children(model_1, 0), 0, &diff), LY_EINVAL);
     assert_int_equal(lyd_diff_siblings(NULL, NULL, 0, NULL), LY_EINVAL);
 
-    MODEL_DESTROY(model_1) 
-    MODEL_DESTROY(diff) 
+    MODEL_DESTROY(model_1);
+    MODEL_DESTROY(diff);
     CONTEXT_DESTROY;
 }
 
@@ -278,14 +288,17 @@ test_same(void **state)
 
     CONTEXT_CREATE;
 
+    struct lyd_node *model_1;
+    struct lyd_node *model_2;
+
     MODEL_CREATE(xml, model_1);
     MODEL_CREATE(xml, model_2);
-    
+
     struct lyd_node * diff = NULL;
     assert_int_equal(lyd_diff_siblings(model_1, model_2, 0, &diff), LY_SUCCESS);
     assert_null(diff);
     assert_int_equal(lyd_diff_apply_all(&model_1, diff), LY_SUCCESS);
-    MODEL_CHECK(model_1, model_2);    
+    MODEL_CHECK(model_1, model_2);
 
     MODEL_DESTROY(model_1);
     MODEL_DESTROY(model_2);
@@ -307,9 +320,11 @@ test_empty1(void **state)
 
     CONTEXT_CREATE;
 
-    struct lyd_node * model_1 = NULL;
+    struct lyd_node *model_1 = NULL;
+    struct lyd_node *model_2;
     MODEL_CREATE(xml_in, model_2);
 
+    struct lyd_node * diff;
     MODEL_CREATE_DIFF(model_1, model_2, diff);
     MODEL_CHECK_CHAR(diff, "<df xmlns=\"urn:libyang:tests:defaults\" xmlns:yang=\"urn:ietf:params:xml:ns:yang:1\" yang:operation=\"create\">"
             "<foo>42</foo><b1_1>42</b1_1>"
@@ -339,8 +354,10 @@ test_empty2(void **state)
 
     CONTEXT_CREATE;
 
+    struct lyd_node *model_1;
     MODEL_CREATE(xml, model_1);
 
+    struct lyd_node * diff;
     MODEL_CREATE_DIFF(model_1, NULL, diff);
     MODEL_CHECK_CHAR(diff, "<df xmlns=\"urn:libyang:tests:defaults\" xmlns:yang=\"urn:ietf:params:xml:ns:yang:1\" yang:operation=\"delete\">"
             "<foo>42</foo><b1_1>42</b1_1>"
@@ -355,7 +372,6 @@ test_empty2(void **state)
     MODEL_DESTROY(diff);
     MODEL_DESTROY(model_1);
     CONTEXT_DESTROY;
-   
 }
 
 static void
@@ -366,17 +382,20 @@ test_empty_nested(void **state)
 
     CONTEXT_CREATE;
 
+    struct lyd_node *model_1;
     MODEL_CREATE(xml, model_1);
 
     struct lyd_node * diff = NULL;
     assert_int_equal(lyd_diff_siblings(NULL, NULL, 0, &diff), LY_SUCCESS);
     assert_null(diff);
 
+    struct lyd_node * diff1;
     MODEL_CREATE_DIFF(NULL, lyd_node_children(model_1, 0), diff1);
     MODEL_CHECK_CHAR(diff1, "<df xmlns=\"urn:libyang:tests:defaults\" xmlns:yang=\"urn:ietf:params:xml:ns:yang:1\" yang:operation=\"none\">"
             "<foo yang:operation=\"create\">42</foo>"
         "</df>");
 
+    struct lyd_node * diff2;
     MODEL_CREATE_DIFF(lyd_node_children(model_1, 0), NULL, diff2);
     MODEL_CHECK_CHAR(diff2, "<df xmlns=\"urn:libyang:tests:defaults\" xmlns:yang=\"urn:ietf:params:xml:ns:yang:1\" yang:operation=\"none\">"
             "<foo yang:operation=\"delete\">42</foo>"
@@ -490,7 +509,7 @@ test_list(void **state)
                 "<value yang:operation=\"replace\" yang:orig-value=\"2\">-2</value>"
             "</list>"
         "</df>";
-    
+
     TEST_DIFF_3(xml1, xml2, xml3, out_diff_1, out_diff_2, out_merge);
 }
 
@@ -596,7 +615,7 @@ test_userord_mix(void **state)
                          "<llist>4</llist>"
                          "<llist>3</llist>"
                        "</df>";
-  
+
     const char * out_diff_1 = "<df xmlns=\"urn:libyang:tests:defaults\" xmlns:yang=\"urn:ietf:params:xml:ns:yang:1\" yang:operation=\"none\">"
             "<llist yang:operation=\"delete\" yang:orig-value=\"1\">2</llist>"
             "<llist yang:operation=\"replace\" yang:orig-value=\"1\" yang:value=\"\">3</llist>"
@@ -635,6 +654,8 @@ test_wd(void **state)
     assert_int_equal(lyd_validate_module(&model_1, mod, 0, NULL), LY_SUCCESS);
     assert_ptr_not_equal(model_1, NULL);
 
+    struct lyd_node *model_2;
+    struct lyd_node *model_3;
     MODEL_CREATE_PARAM(xml2, LYD_XML, 0, LYD_VALIDATE_PRESENT, model_2);
     MODEL_CREATE_PARAM(xml3, LYD_XML, 0, LYD_VALIDATE_PRESENT, model_3);
 
@@ -650,8 +671,8 @@ test_wd(void **state)
             "<dllist yang:operation=\"delete\">3</dllist>"
             "<dllist yang:operation=\"create\">4</dllist>"
         "</df>";
-    
-    MODEL_CHECK_CHAR_PARAM(diff1, diff1_out_1, LYD_PRINT_WITHSIBLINGS | LYD_PRINT_WD_ALL | LYD_PRINT_SHRINK);
+
+    MODEL_CHECK_CHAR_PARAM(diff1, diff1_out_1, LYD_XML, LYD_PRINT_WITHSIBLINGS | LYD_PRINT_WD_ALL | LYD_PRINT_SHRINK);
     assert_int_equal(lyd_diff_apply_all(&model_1, diff1), LY_SUCCESS);
     MODEL_CHECK(model_1, model_2);
 
@@ -677,7 +698,7 @@ test_wd(void **state)
             "<dllist yang:operation=\"delete\">3</dllist>"
             "<dllist yang:operation=\"create\">4</dllist>"
         "</df>";
-    MODEL_CHECK_CHAR_PARAM(diff1, diff1_out_2, LYD_PRINT_WITHSIBLINGS | LYD_PRINT_WD_ALL | LYD_PRINT_SHRINK);
+    MODEL_CHECK_CHAR_PARAM(diff1, diff1_out_2, LYD_XML, LYD_PRINT_WITHSIBLINGS | LYD_PRINT_WD_ALL | LYD_PRINT_SHRINK);
 
     MODEL_DESTROY(model_1);
     MODEL_DESTROY(model_2);

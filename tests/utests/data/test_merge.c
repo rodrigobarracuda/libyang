@@ -19,18 +19,19 @@
 #include "../macros.h"
 
 
-#define MODEL_CREATE(INPUT, MODEL) MODEL_CREATE_PARAM(INPUT, LYD_XML, 0, LYD_VALIDATE_PRESENT, MODEL) 
+#define MODEL_CREATE(INPUT, MODEL) \
+                MODEL_CREATE_PARAM(INPUT, LYD_XML, 0, LYD_VALIDATE_PRESENT, MODEL)
 
 #define CONTEXT_CREATE \
-                CONTEXT_CREATE_PATH(NULL);
+                CONTEXT_CREATE_PATH(NULL)
 
 #define MODEL_CHECK_CHAR(MODEL, TEXT) \
-                MODEL_CHECK_CHAR_PARAM(MODEL, TEXT,  LYD_PRINT_WITHSIBLINGS | LYD_PRINT_SHRINK);
+                MODEL_CHECK_CHAR_PARAM(MODEL, TEXT, LYD_XML, LYD_PRINT_WITHSIBLINGS | LYD_PRINT_SHRINK)
 
 static void
 test_batch(void **state)
 {
-    
+
     (void) state;
     const char *start =
     "<modules-state xmlns=\"urn:ietf:params:xml:ns:yang:ietf-yang-library\">"
@@ -188,10 +189,12 @@ test_batch(void **state)
     "</modules-state>";
 
     CONTEXT_CREATE;
-    MODEL_CREATE_PARAM(start, LYD_XML, LYD_PARSE_ONLY, 0, target)
+    struct lyd_node *target;
+    MODEL_CREATE_PARAM(start, LYD_XML, LYD_PARSE_ONLY, 0, target);
 
     for (int32_t i = 0; i < 11; ++i) {
-        MODEL_CREATE_PARAM(data[i], LYD_XML, LYD_PARSE_ONLY, 0, source)
+        struct lyd_node *source;
+        MODEL_CREATE_PARAM(data[i], LYD_XML, LYD_PARSE_ONLY, 0, source);
         assert_int_equal(LY_SUCCESS, lyd_merge_siblings(&target, source, LYD_MERGE_DESTRUCT));
     }
 
@@ -204,7 +207,7 @@ test_batch(void **state)
 static void
 test_leaf(void **state)
 {
-    (void) state; 
+    (void) state;
     const char *sch = "module x {"
                     "  namespace urn:x;"
                     "  prefix x;"
@@ -222,6 +225,7 @@ test_leaf(void **state)
     CONTEXT_CREATE;
     assert_int_equal(LY_SUCCESS, lys_parse_mem(CONTEXT_GET, sch, LYS_IN_YANG, NULL));
 
+    struct lyd_node *source, *target;
     MODEL_CREATE(src, source); //source
     MODEL_CREATE(trg, target); //target
 
@@ -262,7 +266,8 @@ test_container(void **state)
 
     CONTEXT_CREATE;
     assert_int_equal(LY_SUCCESS, lys_parse_mem(CONTEXT_GET, sch, LYS_IN_YANG, NULL));
-    
+
+    struct lyd_node *source, *target;
     MODEL_CREATE(src, source);
     MODEL_CREATE(trg, target);
 
@@ -333,6 +338,7 @@ test_list(void **state)
     CONTEXT_CREATE;
     assert_int_equal(LY_SUCCESS, lys_parse_mem(CONTEXT_GET, sch, LYS_IN_YANG, NULL));
 
+    struct lyd_node *source, *target;
     MODEL_CREATE(src, source);
     MODEL_CREATE(trg, target);
 
@@ -411,6 +417,7 @@ test_list2(void **state)
     CONTEXT_CREATE;
     assert_int_equal(LY_SUCCESS, lys_parse_mem(CONTEXT_GET, sch, LYS_IN_YANG, NULL));
 
+    struct lyd_node *source, *target;
     MODEL_CREATE(src, source);
     MODEL_CREATE(trg, target);
 
@@ -420,7 +427,7 @@ test_list2(void **state)
 
     /* check the result */
     MODEL_CHECK_CHAR(target, result);
-    
+
     MODEL_DESTROY(source);
     MODEL_DESTROY(target);
     CONTEXT_DESTROY;
@@ -467,7 +474,8 @@ test_case(void **state)
 
     CONTEXT_CREATE;
     assert_int_equal(LY_SUCCESS, lys_parse_mem(CONTEXT_GET, sch, LYS_IN_YANG, NULL));
-    
+
+    struct lyd_node *source, *target;
     MODEL_CREATE(src, source);
     MODEL_CREATE(trg, target);
 
@@ -571,7 +579,7 @@ test_dflt2(void **state)
 
     MODEL_DESTROY(target);
     MODEL_DESTROY(source);
-    CONTEXT_DESTROY;  
+    CONTEXT_DESTROY;
 }
 
 static void
@@ -593,11 +601,12 @@ test_leafrefs(void **state)
     const char *res = "<l xmlns=\"urn:x\"><n>a</n><t>*</t></l>"
                       "<l xmlns=\"urn:x\"><n>b</n><r>a</r></l>"
                       "<l xmlns=\"urn:x\"><n>c</n><r>a</r></l>";
-    
+
     CONTEXT_CREATE;
-    
+
     assert_int_equal(LY_SUCCESS, lys_parse_mem(CONTEXT_GET, sch, LYS_IN_YANG, NULL));
 
+    struct lyd_node *source, *target;
     MODEL_CREATE(src, source);
     MODEL_CREATE(trg, target);
 

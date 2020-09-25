@@ -24,10 +24,10 @@
                 MODEL_CREATE_PARAM(INPUT, LYD_XML, LYD_PARSE_ONLY | LYD_PARSE_STRICT, 0, MODEL)
 
 #define CONTEXT_CREATE \
-                CONTEXT_CREATE_PATH(TESTS_DIR_MODULES_YANG);
+                CONTEXT_CREATE_PATH(TESTS_DIR_MODULES_YANG)
 
 #define MODEL_CHECK_CHAR(MODEL, TEXT) \
-                MODEL_CHECK_CHAR_PARAM(MODEL, TEXT, LYD_PRINT_WITHSIBLINGS | LYD_PRINT_SHRINK);
+                MODEL_CHECK_CHAR_PARAM(MODEL, TEXT, LYD_XML, LYD_PRINT_WITHSIBLINGS | LYD_PRINT_SHRINK)
 
 static void
 test_ietf_interfaces(void **state)
@@ -76,6 +76,7 @@ test_ietf_interfaces(void **state)
     assert_non_null(ly_ctx_load_module(CONTEXT_GET, "iana-if-type", NULL));
 
     /* model_1 */
+    struct lyd_node *model_1;
     MODEL_CREATE(data_xml, model_1);
 
     /* model_2 */
@@ -131,6 +132,7 @@ test_origin(void **state)
     lys_set_implemented(ly_ctx_get_module_latest(CONTEXT_GET, "ietf-origin"));
 
     /* model_1 */
+    struct lyd_node *model_1;
     MODEL_CREATE(data_xml, model_1);
 
     /* model_2 */
@@ -349,6 +351,7 @@ test_statements(void **state)
     assert_int_equal(LY_SUCCESS, lys_parse_mem(CONTEXT_GET, statements_yang, LYS_IN_YANG, NULL));
 
     /* model_1 */
+    struct lyd_node *model_1;
     MODEL_CREATE(data_xml, model_1);
 
     /* model_2 */
