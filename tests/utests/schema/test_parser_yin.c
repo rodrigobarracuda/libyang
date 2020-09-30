@@ -605,7 +605,7 @@ test_yin_parse_content(void **state)
     struct lysp_ext_instance *exts = NULL;
     const char **if_features = NULL;
     const char *value, *err_msg, *app_tag, *units;
-    struct lysp_nodeid def = {0};
+    struct lysp_qname def = {0};
     struct lysp_ext *ext_def = NULL;
     struct lysp_when *when_p = NULL;
     struct lysp_type_enum pos_enum = {}, val_enum = {};
@@ -1430,7 +1430,7 @@ test_default_elem(void **state)
 {
     struct test_parser_yin_state *st = *state;
     const char *data;
-    struct lysp_nodeid val = {0};
+    struct lysp_qname val = {0};
     struct lysp_ext_instance *exts = NULL;
 
     data = ELEMENT_WRAPPER_START "<default value=\"defaul-value\">"EXT_SUBELEM"</default>" ELEMENT_WRAPPER_END;

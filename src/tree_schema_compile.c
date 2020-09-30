@@ -44,7 +44,7 @@
 static LY_ERR lys_compile_ext(struct lysc_ctx *ctx, struct lysp_ext_instance *ext_p, struct lysc_ext_instance *ext,
         void *parent, LYEXT_PARENT parent_type, const struct lys_module *ext_mod);
 
-static LY_ERR lysp_nodeid_dup(const struct ly_ctx *ctx, struct lysp_nodeid *nodeid, const struct lysp_nodeid *orig_nodeid);
+static LY_ERR lysp_qname_dup(const struct ly_ctx *ctx, struct lysp_qname *qname, const struct lysp_qname *orig_qname);
 
 /**
  * @brief Duplicate string into dictionary
@@ -176,7 +176,7 @@ lysc_ext_instance_dup(struct ly_ctx *ctx, struct lysc_ext_instance *orig)
  * @return LY_ERR value.
  */
 static LY_ERR
-lysc_unres_leaf_dflt_add(struct lysc_ctx *ctx, struct lysc_node_leaf *leaf, struct lysp_nodeid *dflt)
+lysc_unres_leaf_dflt_add(struct lysc_ctx *ctx, struct lysc_node_leaf *leaf, struct lysp_qname *dflt)
 {
     struct lysc_unres_dflt *r = NULL;
     uint32_t i;
@@ -185,7 +185,7 @@ lysc_unres_leaf_dflt_add(struct lysc_ctx *ctx, struct lysc_node_leaf *leaf, stru
         if (((struct lysc_unres_dflt *)ctx->dflts.objs[i])->leaf == leaf) {
             /* just replace the default */
             r = ctx->dflts.objs[i];
-            lysp_nodeid_free(ctx->ctx, r->dflt);
+            lysp_qname_free(ctx->ctx, r->dflt);
             free(r->dflt);
             break;
         }
@@ -200,7 +200,7 @@ lysc_unres_leaf_dflt_add(struct lysc_ctx *ctx, struct lysc_node_leaf *leaf, stru
     }
 
     r->dflt = malloc(sizeof *r->dflt);
-    lysp_nodeid_dup(ctx->ctx, r->dflt, dflt);
+    lysp_qname_dup(ctx->ctx, r->dflt, dflt);
 
     return LY_SUCCESS;
 }
@@ -214,7 +214,7 @@ lysc_unres_leaf_dflt_add(struct lysc_ctx *ctx, struct lysc_node_leaf *leaf, stru
  * @return LY_ERR value.
  */
 static LY_ERR
-lysc_unres_llist_dflts_add(struct lysc_ctx *ctx, struct lysc_node_leaflist *llist, struct lysp_nodeid *dflts)
+lysc_unres_llist_dflts_add(struct lysc_ctx *ctx, struct lysc_node_leaflist *llist, struct lysp_qname *dflts)
 {
     struct lysc_unres_dflt *r = NULL;
     uint32_t i;
@@ -223,10 +223,10 @@ lysc_unres_llist_dflts_add(struct lysc_ctx *ctx, struct lysc_node_leaflist *llis
         if (((struct lysc_unres_dflt *)ctx->dflts.objs[i])->llist == llist) {
             /* just replace the defaults */
             r = ctx->dflts.objs[i];
-            lysp_nodeid_free(ctx->ctx, r->dflt);
+            lysp_qname_free(ctx->ctx, r->dflt);
             free(r->dflt);
             r->dflt = NULL;
-            FREE_ARRAY(ctx->ctx, r->dflts, lysp_nodeid_free);
+            FREE_ARRAY(ctx->ctx, r->dflts, lysp_qname_free);
             r->dflts = NULL;
             break;
         }
@@ -239,7 +239,7 @@ lysc_unres_llist_dflts_add(struct lysc_ctx *ctx, struct lysc_node_leaflist *llis
         LY_CHECK_RET(ly_set_add(&ctx->dflts, r, LY_SET_OPT_USEASLIST, NULL));
     }
 
-    DUP_ARRAY(ctx->ctx, dflts, r->dflts, lysp_nodeid_dup);
+    DUP_ARRAY(ctx->ctx, dflts, r->dflts, lysp_qname_dup);
 
     return LY_SUCCESS;
 }
@@ -249,10 +249,10 @@ lysc_unres_dflt_free(const struct ly_ctx *ctx, struct lysc_unres_dflt *r)
 {
     assert(!r->dflt || !r->dflts);
     if (r->dflt) {
-        lysp_nodeid_free((struct ly_ctx *)ctx, r->dflt);
+        lysp_qname_free((struct ly_ctx *)ctx, r->dflt);
         free(r->dflt);
     } else {
-        FREE_ARRAY((struct ly_ctx *)ctx, r->dflts, lysp_nodeid_free);
+        FREE_ARRAY((struct ly_ctx *)ctx, r->dflts, lysp_qname_free);
     }
     free(r);
 }
@@ -710,15 +710,15 @@ cleanup:
 /**
  * @brief Compile information from the if-feature statement
  * @param[in] ctx Compile context.
- * @param[in] nodeid The if-feature argument to process. It is pointer-to-nodeid just to unify the compile functions.
+ * @param[in] qname The if-feature argument to process. It is pointer-to-qname just to unify the compile functions.
  * @param[in,out] iff Prepared (empty) compiled if-feature structure to fill.
  * @return LY_ERR value.
  */
 static LY_ERR
-lys_compile_iffeature(struct lysc_ctx *ctx, struct lysp_nodeid *nodeid, struct lysc_iffeature *iff)
+lys_compile_iffeature(struct lysc_ctx *ctx, struct lysp_qname *qname, struct lysc_iffeature *iff)
 {
     LY_ERR rc = LY_SUCCESS;
-    const char *c = nodeid->str;
+    const char *c = qname->str;
     int64_t i, j;
     int8_t op_len, last_not = 0, checkversion = 0;
     LY_ARRAY_COUNT_TYPE f_size = 0, expr_size = 0, f_exp = 1;
@@ -747,7 +747,7 @@ lys_compile_iffeature(struct lysc_ctx *ctx, struct lysp_nodeid *nodeid, struct l
             for (spaces = 0; c[i + op_len + spaces] && isspace(c[i + op_len + spaces]); spaces++);
             if (c[i + op_len + spaces] == '\0') {
                 LOGVAL(ctx->ctx, LY_VLOG_STR, ctx->path, LYVE_SYNTAX_YANG,
-                       "Invalid value \"%s\" of if-feature - unexpected end of expression.", nodeid->str);
+                       "Invalid value \"%s\" of if-feature - unexpected end of expression.", qname->str);
                 return LY_EVALID;
             } else if (!isspace(c[i + op_len])) {
                 /* feature name starting with the not/and/or */
@@ -765,7 +765,7 @@ lys_compile_iffeature(struct lysc_ctx *ctx, struct lysp_nodeid *nodeid, struct l
                 if (f_exp != f_size) {
                     LOGVAL(ctx->ctx, LY_VLOG_STR, ctx->path, LYVE_SYNTAX_YANG,
                            "Invalid value \"%s\" of if-feature - missing feature/expression before \"%.*s\" operation.",
-                           nodeid->str, op_len, &c[i]);
+                           qname->str, op_len, &c[i]);
                     return LY_EVALID;
                 }
                 f_exp++;
@@ -791,22 +791,22 @@ lys_compile_iffeature(struct lysc_ctx *ctx, struct lysp_nodeid *nodeid, struct l
     if (j) {
         /* not matching count of ( and ) */
         LOGVAL(ctx->ctx, LY_VLOG_STR, ctx->path, LYVE_SYNTAX_YANG,
-               "Invalid value \"%s\" of if-feature - non-matching opening and closing parentheses.", nodeid->str);
+               "Invalid value \"%s\" of if-feature - non-matching opening and closing parentheses.", qname->str);
         return LY_EVALID;
     }
     if (f_exp != f_size) {
         /* features do not match the needed arguments for the logical operations */
         LOGVAL(ctx->ctx, LY_VLOG_STR, ctx->path, LYVE_SYNTAX_YANG,
                "Invalid value \"%s\" of if-feature - number of features in expression does not match "
-               "the required number of operands for the operations.", nodeid->str);
+               "the required number of operands for the operations.", qname->str);
         return LY_EVALID;
     }
 
     if (checkversion || expr_size > 1) {
         /* check that we have 1.1 module */
-        if (nodeid->mod->version != LYS_VERSION_1_1) {
+        if (qname->mod->version != LYS_VERSION_1_1) {
             LOGVAL(ctx->ctx, LY_VLOG_STR, ctx->path, LYVE_SYNTAX_YANG,
-                   "Invalid value \"%s\" of if-feature - YANG 1.1 expression in YANG 1.0 module.", nodeid->str);
+                   "Invalid value \"%s\" of if-feature - YANG 1.1 expression in YANG 1.0 module.", qname->str);
             return LY_EVALID;
         }
     }
@@ -872,9 +872,9 @@ lys_compile_iffeature(struct lysc_ctx *ctx, struct lysp_nodeid *nodeid, struct l
             iff_setop(iff->expr, LYS_IFF_F, expr_size--);
 
             /* now get the link to the feature definition */
-            f = lys_feature_find(nodeid->mod, &c[i], j - i);
+            f = lys_feature_find(qname->mod, &c[i], j - i);
             LY_CHECK_ERR_GOTO(!f, LOGVAL(ctx->ctx, LY_VLOG_STR, ctx->path, LYVE_SYNTAX_YANG,
-                    "Invalid value \"%s\" of if-feature - unable to find feature \"%.*s\".", nodeid->str, j - i, &c[i]);
+                    "Invalid value \"%s\" of if-feature - unable to find feature \"%.*s\".", qname->str, j - i, &c[i]);
                     rc = LY_EVALID, error)
             iff->features[f_size] = f;
             LY_ARRAY_INCREMENT(iff->features);
@@ -889,7 +889,7 @@ lys_compile_iffeature(struct lysc_ctx *ctx, struct lysp_nodeid *nodeid, struct l
     if (++expr_size || ++f_size) {
         /* not all expected operators and operands found */
         LOGVAL(ctx->ctx, LY_VLOG_STR, ctx->path, LYVE_SYNTAX_YANG,
-                "Invalid value \"%s\" of if-feature - processing error.", nodeid->str);
+                "Invalid value \"%s\" of if-feature - processing error.", qname->str);
         rc = LY_EINT;
     } else {
         rc = LY_SUCCESS;
@@ -2522,7 +2522,7 @@ cleanup:
 
 static LY_ERR lys_compile_type(struct lysc_ctx *ctx, struct lysp_node *context_node_p, uint16_t context_flags,
         struct lysp_module *context_mod, const char *context_name, struct lysp_type *type_p,
-        struct lysc_type **type, const char **units, struct lysp_nodeid **dflt);
+        struct lysc_type **type, const char **units, struct lysp_qname **dflt);
 
 /**
  * @brief The core of the lys_compile_type() - compile information about the given type (from typedef or leaf/leaf-list).
@@ -2916,7 +2916,7 @@ cleanup:
 static LY_ERR
 lys_compile_type(struct lysc_ctx *ctx, struct lysp_node *context_node_p, uint16_t context_flags,
         struct lysp_module *context_mod, const char *context_name, struct lysp_type *type_p,
-        struct lysc_type **type, const char **units, struct lysp_nodeid **dflt)
+        struct lysc_type **type, const char **units, struct lysp_qname **dflt)
 {
     LY_ERR ret = LY_SUCCESS;
     ly_bool dummyloops = 0;
@@ -2957,7 +2957,7 @@ lys_compile_type(struct lysc_ctx *ctx, struct lysp_node *context_node_p, uint16_
         }
         if (dflt && !*dflt && tctx->tpdf->dflt.str) {
             /* inherit default */
-            *dflt = (struct lysp_nodeid *)&tctx->tpdf->dflt;
+            *dflt = (struct lysp_qname *)&tctx->tpdf->dflt;
         }
         if (dummyloops && (!units || *units) && dflt && *dflt) {
             basetype = ((struct type_context *)tpdf_chain.objs[tpdf_chain.count - 1])->tpdf->type.compiled->basetype;
@@ -3599,7 +3599,7 @@ static LY_ERR
 lys_compile_node_type(struct lysc_ctx *ctx, struct lysp_node *context_node, struct lysp_type *type_p,
         struct lysc_node_leaf *leaf)
 {
-    struct lysp_nodeid *dflt;
+    struct lysp_qname *dflt;
 
     LY_CHECK_RET(lys_compile_type(ctx, context_node, leaf->flags, ctx->mod_def->parsed, leaf->name, type_p, &leaf->type,
                                   leaf->units ? NULL : &leaf->units, &dflt));
@@ -3753,7 +3753,7 @@ done:
  * @return LY_ERR value.
  */
 static LY_ERR
-lys_compile_node_list_unique(struct lysc_ctx *ctx, struct lysp_nodeid *uniques, struct lysc_node_list *list)
+lys_compile_node_list_unique(struct lysc_ctx *ctx, struct lysp_qname *uniques, struct lysc_node_list *list)
 {
     LY_ERR ret = LY_SUCCESS;
     struct lysc_node_leaf **key, ***unique;
@@ -4021,7 +4021,7 @@ done:
  * @return LY_ERR value.
  */
 static LY_ERR
-lys_compile_node_choice_dflt(struct lysc_ctx *ctx, struct lysp_nodeid *dflt, struct lysc_node_choice *ch)
+lys_compile_node_choice_dflt(struct lysc_ctx *ctx, struct lysp_qname *dflt, struct lysc_node_choice *ch)
 {
     struct lysc_node *iter, *node = (struct lysc_node *)ch;
     const struct lys_module *mod;
@@ -5167,12 +5167,12 @@ lysp_string_dup(const struct ly_ctx *ctx, const char **str, const char **orig_st
 }
 
 static LY_ERR
-lysp_nodeid_dup(const struct ly_ctx *ctx, struct lysp_nodeid *nodeid, const struct lysp_nodeid *orig_nodeid)
+lysp_qname_dup(const struct ly_ctx *ctx, struct lysp_qname *qname, const struct lysp_qname *orig_qname)
 {
     LY_ERR ret = LY_SUCCESS;
 
-    DUP_STRING(ctx, orig_nodeid->str, nodeid->str, ret);
-    nodeid->mod = orig_nodeid->mod;
+    DUP_STRING(ctx, orig_qname->str, qname->str, ret);
+    qname->mod = orig_qname->mod;
 
     return ret;
 }
@@ -5186,7 +5186,7 @@ lysp_type_enum_dup(const struct ly_ctx *ctx, struct lysp_type_enum *enm, const s
     DUP_STRING(ctx, orig_enm->dsc, enm->dsc, ret);
     DUP_STRING(ctx, orig_enm->ref, enm->ref, ret);
     enm->value = orig_enm->value;
-    DUP_ARRAY(ctx, orig_enm->iffeatures, enm->iffeatures, lysp_nodeid_dup);
+    DUP_ARRAY(ctx, orig_enm->iffeatures, enm->iffeatures, lysp_qname_dup);
     DUP_ARRAY(ctx, orig_enm->exts, enm->exts, lysp_ext_dup);
     enm->flags = orig_enm->flags;
 
@@ -5262,7 +5262,7 @@ lysp_node_common_dup(const struct ly_ctx *ctx, struct lysp_node *node, const str
         LY_CHECK_RET(lysp_when_dup(ctx, node->when, orig->when));
     }
 
-    DUP_ARRAY(ctx, orig->iffeatures, node->iffeatures, lysp_nodeid_dup);
+    DUP_ARRAY(ctx, orig->iffeatures, node->iffeatures, lysp_qname_dup);
     DUP_ARRAY(ctx, orig->exts, node->exts, lysp_ext_dup);
 
     return ret;
@@ -5318,7 +5318,7 @@ lysp_node_dup(const struct ly_ctx *ctx, struct lysp_node *node, const struct lys
         DUP_ARRAY(ctx, orig_llist->musts, llist->musts, lysp_restr_dup);
         LY_CHECK_RET(lysp_type_dup(ctx, &llist->type, &orig_llist->type));
         DUP_STRING(ctx, orig_llist->units, llist->units, ret);
-        DUP_ARRAY(ctx, orig_llist->dflts, llist->dflts, lysp_nodeid_dup);
+        DUP_ARRAY(ctx, orig_llist->dflts, llist->dflts, lysp_qname_dup);
         llist->min = orig_llist->min;
         llist->max = orig_llist->max;
         break;
@@ -5329,7 +5329,7 @@ lysp_node_dup(const struct ly_ctx *ctx, struct lysp_node *node, const struct lys
         DUP_ARRAY(ctx, orig_list->musts, list->musts, lysp_restr_dup);
         DUP_STRING(ctx, orig_list->key, list->key, ret);
         /* we do not need these arrays */
-        DUP_ARRAY(ctx, orig_list->uniques, list->uniques, lysp_nodeid_dup);
+        DUP_ARRAY(ctx, orig_list->uniques, list->uniques, lysp_qname_dup);
         list->min = orig_list->min;
         list->max = orig_list->max;
         break;
@@ -5338,7 +5338,7 @@ lysp_node_dup(const struct ly_ctx *ctx, struct lysp_node *node, const struct lys
         orig_choice = (const struct lysp_node_choice *)orig;
 
         /* we do not need children */
-        LY_CHECK_RET(lysp_nodeid_dup(ctx, &choice->dflt, &orig_choice->dflt));
+        LY_CHECK_RET(lysp_qname_dup(ctx, &choice->dflt, &orig_choice->dflt));
         break;
     case LYS_CASE:
         cas = (struct lysp_node_case *)node;
@@ -5385,7 +5385,7 @@ lysp_action_dup(const struct ly_ctx *ctx, struct lysp_action *act, const struct 
     DUP_STRING(ctx, orig->name, act->name, ret);
     DUP_STRING(ctx, orig->dsc, act->dsc, ret);
     DUP_STRING(ctx, orig->ref, act->ref, ret);
-    DUP_ARRAY(ctx, orig->iffeatures, act->iffeatures, lysp_nodeid_dup);
+    DUP_ARRAY(ctx, orig->iffeatures, act->iffeatures, lysp_qname_dup);
 
     act->input.nodetype = orig->input.nodetype;
     act->output.nodetype = orig->output.nodetype;
@@ -5406,7 +5406,7 @@ lysp_notif_dup(const struct ly_ctx *ctx, struct lysp_notif *notif, const struct 
     DUP_STRING(ctx, orig->name, notif->name, ret);
     DUP_STRING(ctx, orig->dsc, notif->dsc, ret);
     DUP_STRING(ctx, orig->ref, notif->ref, ret);
-    DUP_ARRAY(ctx, orig->iffeatures, notif->iffeatures, lysp_nodeid_dup);
+    DUP_ARRAY(ctx, orig->iffeatures, notif->iffeatures, lysp_qname_dup);
     DUP_ARRAY(ctx, orig->musts, notif->musts, lysp_restr_dup);
     /* we do not need these arrays */
     DUP_ARRAY(ctx, orig->exts, notif->exts, lysp_ext_dup);
@@ -5545,7 +5545,7 @@ lys_apply_refine(struct lysc_ctx *ctx, struct lysp_refine *rfn, struct lysp_node
 {
     LY_ERR ret = LY_SUCCESS;
     LY_ARRAY_COUNT_TYPE u;
-    struct lysp_nodeid *nodeid;
+    struct lysp_qname *qname;
     struct lysp_restr **musts, *must;
     uint32_t *num;
 
@@ -5569,12 +5569,12 @@ lys_apply_refine(struct lysc_ctx *ctx, struct lysp_refine *rfn, struct lysp_node
                 goto cleanup;
             }
 
-            FREE_ARRAY(ctx->ctx, ((struct lysp_node_leaflist *)target)->dflts, lysp_nodeid_free);
+            FREE_ARRAY(ctx->ctx, ((struct lysp_node_leaflist *)target)->dflts, lysp_qname_free);
             ((struct lysp_node_leaflist *)target)->dflts = NULL;
             LY_ARRAY_FOR(rfn->dflts, u) {
-                LY_ARRAY_NEW_GOTO(ctx->ctx, ((struct lysp_node_leaflist *)target)->dflts, nodeid, ret, cleanup);
-                DUP_STRING_GOTO(ctx->ctx, rfn->dflts[u], nodeid->str, ret, cleanup);
-                nodeid->mod = ctx->mod;
+                LY_ARRAY_NEW_GOTO(ctx->ctx, ((struct lysp_node_leaflist *)target)->dflts, qname, ret, cleanup);
+                DUP_STRING_GOTO(ctx->ctx, rfn->dflts[u], qname->str, ret, cleanup);
+                qname->mod = ctx->mod;
             }
             break;
         case LYS_CHOICE:
@@ -5701,9 +5701,9 @@ lys_apply_refine(struct lysc_ctx *ctx, struct lysp_refine *rfn, struct lysp_node
                 "refine", "add", "if-feature");
 
         LY_ARRAY_FOR(rfn->iffeatures, u) {
-            LY_ARRAY_NEW_GOTO(ctx->ctx, target->iffeatures, nodeid, ret, cleanup);
-            DUP_STRING_GOTO(ctx->ctx, rfn->iffeatures[u], nodeid->str, ret, cleanup);
-            nodeid->mod = ctx->mod;
+            LY_ARRAY_NEW_GOTO(ctx->ctx, target->iffeatures, qname, ret, cleanup);
+            DUP_STRING_GOTO(ctx->ctx, rfn->iffeatures[u], qname->str, ret, cleanup);
+            qname->mod = ctx->mod;
         }
     }
 
@@ -5727,7 +5727,7 @@ lys_apply_deviate_add(struct lysc_ctx *ctx, struct lysp_deviate_add *d, struct l
 {
     LY_ERR ret = LY_SUCCESS;
     LY_ARRAY_COUNT_TYPE u;
-    struct lysp_nodeid *nodeid;
+    struct lysp_qname *qname;
     uint32_t *num;
     struct lysp_restr **musts, *must;
 
@@ -5785,9 +5785,9 @@ lys_apply_deviate_add(struct lysc_ctx *ctx, struct lysp_deviate_add *d, struct l
         AMEND_CHECK_NODETYPE(LYS_LIST, "deviation", "add", "unique");
 
         LY_ARRAY_FOR(d->uniques, u) {
-            LY_ARRAY_NEW_GOTO(ctx->ctx, ((struct lysp_node_list *)target)->uniques, nodeid, ret, cleanup);
-            DUP_STRING_GOTO(ctx->ctx, d->uniques[u], nodeid->str, ret, cleanup);
-            nodeid->mod = ctx->mod;
+            LY_ARRAY_NEW_GOTO(ctx->ctx, ((struct lysp_node_list *)target)->uniques, qname, ret, cleanup);
+            DUP_STRING_GOTO(ctx->ctx, d->uniques[u], qname->str, ret, cleanup);
+            qname->mod = ctx->mod;
         }
     }
 
@@ -5805,9 +5805,9 @@ lys_apply_deviate_add(struct lysc_ctx *ctx, struct lysp_deviate_add *d, struct l
             break;
         case LYS_LEAFLIST:
             LY_ARRAY_FOR(d->dflts, u) {
-                LY_ARRAY_NEW_GOTO(ctx->ctx, ((struct lysp_node_leaflist *)target)->dflts, nodeid, ret, cleanup);
-                DUP_STRING_GOTO(ctx->ctx, d->dflts[u], nodeid->str, ret, cleanup);
-                nodeid->mod = ctx->mod;
+                LY_ARRAY_NEW_GOTO(ctx->ctx, ((struct lysp_node_leaflist *)target)->dflts, qname, ret, cleanup);
+                DUP_STRING_GOTO(ctx->ctx, d->dflts[u], qname->str, ret, cleanup);
+                qname->mod = ctx->mod;
             }
             break;
         case LYS_CHOICE:
@@ -5933,7 +5933,7 @@ lys_apply_deviate_delete(struct lysc_ctx *ctx, struct lysp_deviate_del *d, struc
     LY_ERR ret = LY_SUCCESS;
     struct lysp_restr **musts;
     LY_ARRAY_COUNT_TYPE u, v;
-    struct lysp_nodeid **uniques, **dflts;
+    struct lysp_qname **uniques, **dflts;
 
 #define DEV_DEL_ARRAY(DEV_ARRAY, ORIG_ARRAY, DEV_MEMBER, ORIG_MEMBER, FREE_FUNC, PROPERTY) \
     LY_ARRAY_FOR(d->DEV_ARRAY, u) { \
@@ -6016,7 +6016,7 @@ lys_apply_deviate_delete(struct lysc_ctx *ctx, struct lysp_deviate_del *d, struc
         AMEND_CHECK_NODETYPE(LYS_LIST, "deviation", "delete", "unique");
 
         uniques = &((struct lysp_node_list *)target)->uniques;
-        DEV_DEL_ARRAY(uniques, *uniques, , .str, lysp_nodeid_free, "unique");
+        DEV_DEL_ARRAY(uniques, *uniques, , .str, lysp_qname_free, "unique");
     }
 
     /* *default-stmt */
@@ -6033,7 +6033,7 @@ lys_apply_deviate_delete(struct lysc_ctx *ctx, struct lysp_deviate_del *d, struc
             break;
         case LYS_LEAFLIST:
             dflts = &((struct lysp_node_leaflist *)target)->dflts;
-            DEV_DEL_ARRAY(dflts, *dflts, , .str, lysp_nodeid_free, "default");
+            DEV_DEL_ARRAY(dflts, *dflts, , .str, lysp_qname_free, "default");
             break;
         case LYS_CHOICE:
             AMEND_CHECK_CARDINALITY(d->dflts, 1, "deviation", "default");
@@ -7261,7 +7261,7 @@ lys_compile_extension_instance(struct lysc_ctx *ctx, const struct lysp_ext_insta
     LY_ERR ret = LY_EVALID, r;
     LY_ARRAY_COUNT_TYPE u;
     struct lysp_stmt *stmt;
-    struct lysp_nodeid nodeid;
+    struct lysp_qname qname;
     void *parsed = NULL, **compiled = NULL;
 
     /* check for invalid substatements */
@@ -7360,9 +7360,9 @@ lys_compile_extension_instance(struct lysc_ctx *ctx, const struct lysp_ext_insta
                         struct lysc_iffeature **iffs = (struct lysc_iffeature **)substmts[u].storage;
                         LY_ARRAY_NEW_GOTO(ctx->ctx, *iffs, iff, ret, cleanup);
                     }
-                    nodeid.str = stmt->arg;
-                    nodeid.mod = ctx->mod_def;
-                    LY_CHECK_ERR_GOTO(r = lys_compile_iffeature(ctx, &nodeid, iff), ret = r, cleanup);
+                    qname.str = stmt->arg;
+                    qname.mod = ctx->mod_def;
+                    LY_CHECK_ERR_GOTO(r = lys_compile_iffeature(ctx, &qname, iff), ret = r, cleanup);
                     break;
                 }
                 /* TODO support other substatements (parse stmt to lysp and then compile lysp to lysc),
@@ -7780,7 +7780,7 @@ lys_compile_unres_dflt(struct lysc_ctx *ctx, struct lysc_node *node, struct lysc
  * @return LY_ERR value.
  */
 static LY_ERR
-lys_compile_unres_leaf_dlft(struct lysc_ctx *ctx, struct lysc_node_leaf *leaf, struct lysp_nodeid *dflt)
+lys_compile_unres_leaf_dlft(struct lysc_ctx *ctx, struct lysc_node_leaf *leaf, struct lysp_qname *dflt)
 {
     LY_ERR ret;
 
@@ -7815,8 +7815,8 @@ lys_compile_unres_leaf_dlft(struct lysc_ctx *ctx, struct lysc_node_leaf *leaf, s
  * @return LY_ERR value.
  */
 static LY_ERR
-lys_compile_unres_llist_dflts(struct lysc_ctx *ctx, struct lysc_node_leaflist *llist, struct lysp_nodeid *dflt,
-        struct lysp_nodeid *dflts)
+lys_compile_unres_llist_dflts(struct lysc_ctx *ctx, struct lysc_node_leaflist *llist, struct lysp_qname *dflt,
+        struct lysp_qname *dflts)
 {
     LY_ERR ret;
     LY_ARRAY_COUNT_TYPE orig_count, u, v;
